@@ -1,0 +1,71 @@
+<svg width="500" height="160" viewBox="0 0 500 160" xmlns="http://www.w3.org/2000/svg">
+    <rect width="500" height="160" fill="transparent"/>
+
+    <text x="20" y="35" font-family="Arial, sans-serif" font-size="14" fill="#FF6F61">
+        Give us a ⭐ on GitHub!
+    </text>
+
+    <text x="250" y="90" font-family="Comic Sans MS, Arial, sans-serif" font-size="56" font-weight="bold"
+        fill="#FFA6C1" stroke="#FFD0E0" stroke-width="1" text-anchor="middle" alignment-baseline="middle">
+        task-beehive
+    </text>
+
+    <!-- 🐝 正常飞行（张翅） -->
+    <g transform="translate(180,60) scale(0.5)">
+        <ellipse cx="0" cy="0" rx="10" ry="14" fill="#FFD93D" stroke="#000"/>
+        <line x1="-7" y1="-7" x2="7" y2="-7" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="0" x2="7" y2="0" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="7" x2="7" y2="7" stroke="#000" stroke-width="2"/>
+
+        <ellipse cx="-7" cy="-10" rx="4" ry="6" fill="#fff" stroke="#A0C4FF" transform="rotate(-25)"/>
+        <ellipse cx="7" cy="-10" rx="4" ry="6" fill="#fff" stroke="#A0C4FF" transform="rotate(25)"/>
+
+        <circle cx="-4" cy="-2" r="1.5"/>
+        <circle cx="4" cy="-2" r="1.5"/>
+    </g>
+
+    <!-- 🐝 微俯冲（身体前倾） -->
+    <g transform="translate(320,60) scale(0.48) rotate(15)">
+        <ellipse cx="0" cy="0" rx="10" ry="14" fill="#FFD93D" stroke="#000"/>
+        <line x1="-7" y1="-7" x2="7" y2="-7" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="0" x2="7" y2="0" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="7" x2="7" y2="7" stroke="#000" stroke-width="2"/>
+
+        <!-- 翅膀稍微后一点 -->
+        <ellipse cx="-6" cy="-8" rx="4" ry="6" fill="#fff" stroke="#A0C4FF" transform="rotate(-15)"/>
+        <ellipse cx="6" cy="-8" rx="4" ry="6" fill="#fff" stroke="#A0C4FF" transform="rotate(15)"/>
+
+        <circle cx="-4" cy="-2" r="1.5"/>
+        <circle cx="4" cy="-2" r="1.5"/>
+    </g>
+
+    <!-- 🐝 轻微翻身（不对称翅膀） -->
+    <g transform="translate(200,120) scale(0.45) rotate(30)">
+        <ellipse cx="0" cy="0" rx="10" ry="14" fill="#FFD93D" stroke="#000"/>
+        <line x1="-7" y1="-7" x2="7" y2="-7" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="0" x2="7" y2="0" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="7" x2="7" y2="7" stroke="#000" stroke-width="2"/>
+
+        <!-- 一高一低 -->
+        <ellipse cx="-7" cy="-11" rx="4" ry="6" fill="#fff" stroke="#A0C4FF" transform="rotate(-20)"/>
+        <ellipse cx="7" cy="-7" rx="4" ry="6" fill="#fff" stroke="#A0C4FF" transform="rotate(20)"/>
+
+        <circle cx="-4" cy="-2" r="1.5"/>
+        <circle cx="4" cy="-2" r="1.5"/>
+    </g>
+
+    <!-- 🐝 收翅（高速飞） -->
+    <g transform="translate(300,120) scale(0.45) rotate(-20)">
+        <ellipse cx="0" cy="0" rx="10" ry="14" fill="#FFD93D" stroke="#000"/>
+        <line x1="-7" y1="-7" x2="7" y2="-7" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="0" x2="7" y2="0" stroke="#000" stroke-width="2"/>
+        <line x1="-7" y1="7" x2="7" y2="7" stroke="#000" stroke-width="2"/>
+
+        <!-- 翅膀变窄但不消失 -->
+        <ellipse cx="-5" cy="-9" rx="2.5" ry="5" fill="#fff" stroke="#A0C4FF"/>
+        <ellipse cx="5" cy="-9" rx="2.5" ry="5" fill="#fff" stroke="#A0C4FF"/>
+
+        <circle cx="-4" cy="-2" r="1.5"/>
+        <circle cx="4" cy="-2" r="1.5"/>
+    </g>
+</svg>
