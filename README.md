@@ -1,7 +1,6 @@
 # 🐝 TaskBeehive 工蜂任务台（任务调度框架）
-<p style="text-align:center;">
-  <img src="task-beehive-logo.svg" alt="task-beehive-logo" width="400">
-</p>
+
+![task-beehive-logo.svg](task-beehive-logo.svg)
 
 ## 一、模块简介
 TaskBeehive 是一个专注 “任务调度控制” 的 Android 框架，主要是为了解决项目开发中各种后台任务的处理问题。
