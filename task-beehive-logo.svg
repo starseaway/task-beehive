@@ -5,7 +5,7 @@
         Give us a ⭐ on GitHub!
     </text>
 
-    <text x="250" y="90" font-family="Comic Sans MS, Arial, sans-serif" font-size="56" font-weight="bold"
+    <text x="250" y="90" font-family="Comic Sans MS, Arial, sans-serif" font-size="70" font-weight="bold"
         fill="#FFA6C1" stroke="#FFD0E0" stroke-width="1" text-anchor="middle" alignment-baseline="middle">
         task-beehive
     </text>
