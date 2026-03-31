@@ -4,6 +4,10 @@
   <img src="task-beehive-logo.svg" width="500" alt="task-beehive-logo">
 </div>
 
+![Version](https://img.shields.io/badge/version-2.0.1-blue)
+![License](https://img.shields.io/badge/license-Apache%202.0-green)
+![API](https://img.shields.io/badge/API-19%2B-brightgreen)
+
 ## 一、模块简介
 TaskBeehive 是一个专注 “任务调度控制” 的 Android 框架，主要是为了解决项目开发中各种后台任务的处理问题。
 
@@ -54,13 +58,13 @@ maven {
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
 dependencies {
-    implementation 'com.github.starseaway:task-beehive:2.0.0'
+    implementation 'com.github.starseaway:task-beehive:2.0.1'
 }
 ```
 
 ```kotlin
 dependencies {
-    implementation("com.github.starseaway:task-beehive:2.0.0")
+    implementation("com.github.starseaway:task-beehive:2.0.1")
 }
 ```
 
@@ -402,6 +406,9 @@ TaskBeehive 并不是一堆工具类拼在一起，而是分层设计：
 ---
 
 ## 九、版本变更记录
+
+### V2.0.1 (2026-03-31)
+- build: 修改 agp 构建版本
 
 ### V2.0.0 (2026-03-20)
 - 本次新增了一些核心的任务调度器组件，目录层级也有所变动，属于重大更新。
