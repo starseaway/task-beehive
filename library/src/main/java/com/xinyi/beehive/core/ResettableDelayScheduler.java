@@ -1,8 +1,12 @@
 package com.xinyi.beehive.core;
 
-import org.jetbrains.annotations.NotNull;
+import androidx.annotation.NonNull;
 
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -30,12 +34,20 @@ public class ResettableDelayScheduler {
     private final AtomicReference<ScheduledFuture<?>> mFutureRef = new AtomicReference<>();
 
     /**
-     * 构造一个新的 ResettableDelayExecutor
-     * 默认使用单线程守护线程池执行任务
+     * 调度代数
+     *
+     * <p> 每次 execute 递增，用于丢弃已被取代的任务，避免 finally 误清新的 future </p>
      */
-    public ResettableDelayScheduler(String threadName) {
+    private final AtomicLong mGeneration = new AtomicLong();
+
+    /**
+     * 构造函数
+     *
+     * @param threadNameSuffix 工作线程名后缀
+     */
+    public ResettableDelayScheduler(String threadNameSuffix) {
         this.mScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "ResettableDelayExecutor（线程） - " + threadName);
+            Thread thread = new Thread(runnable, "Beehive-ResettableDelay-" + threadNameSuffix);
             thread.setDaemon(true);
             return thread;
         });
@@ -50,28 +62,34 @@ public class ResettableDelayScheduler {
      * @param delayMs 延迟时间，单位为毫秒，必须大于等于 0
      * @throws IllegalArgumentException 如果 delayMs 小于 0
      */
-    public void execute(@NotNull Runnable task, long delayMs) {
+    public void execute(@NonNull Runnable task, long delayMs) {
         if (delayMs < 0) {
             throw new IllegalArgumentException("delayMs must be >= 0");
         }
 
-        // 取消旧任务
-        ScheduledFuture<?> old = mFutureRef.getAndSet(null);
-        if (old != null) {
-            old.cancel(false);
-        }
+        final long gen = mGeneration.incrementAndGet();
+        final AtomicReference<ScheduledFuture<?>> self = new AtomicReference<>();
 
-        // 提交新任务
         ScheduledFuture<?> future = mScheduler.schedule(() -> {
+            // 已被更新的 execute 取代
+            if (mGeneration.get() != gen) {
+                return;
+            }
             try {
                 task.run();
             } finally {
-                // 执行结束后清空引用，避免误取消下一次任务
-                mFutureRef.set(null);
+                // 仅当仍是当前代时清空，避免清掉后续已安排的 future
+                if (mGeneration.get() == gen) {
+                    mFutureRef.compareAndSet(self.get(), null);
+                }
             }
         }, delayMs, TimeUnit.MILLISECONDS);
 
-        mFutureRef.set(future);
+        self.set(future);
+        ScheduledFuture<?> prev = mFutureRef.getAndSet(future);
+        if (prev != null) {
+            prev.cancel(false);
+        }
     }
 
     /**
@@ -83,7 +101,6 @@ public class ResettableDelayScheduler {
      */
     public boolean hasPendingTask() {
         ScheduledFuture<?> future = mFutureRef.get();
-        // future 不为 null、未取消、未执行完成，即视为存在待执行任务
         return future != null && !future.isCancelled() && !future.isDone();
     }
 
@@ -93,6 +110,7 @@ public class ResettableDelayScheduler {
      * <p> 如果当前没有计划任务，则该方法不会有任何效果 </p>
      */
     public void cancel() {
+        mGeneration.incrementAndGet();
         ScheduledFuture<?> future = mFutureRef.getAndSet(null);
         if (future != null) {
             future.cancel(false);
@@ -100,9 +118,10 @@ public class ResettableDelayScheduler {
     }
 
     /**
-     * 关闭内部使用的调度线程池
+     * 关闭内部使用的调度线程
      */
     public void shutdown() {
+        mGeneration.incrementAndGet();
         mScheduler.shutdown();
     }
 }

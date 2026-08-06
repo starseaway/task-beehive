@@ -5,9 +5,10 @@ import android.os.SystemClock;
 import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 时间有序单队列单线程事件循环
+ * 时间有序单队列单线程事件循环处理器
  *
  * <p> 所有任务在同一线程串行执行，多线程可安全 post 任务 </p>
  *
@@ -39,9 +40,9 @@ public final class TimeOrderedEventLoop extends WorkerLoop {
     private int heapSize;
 
     /**
-     * 递增序列号（保证 FIFO 稳定性）
+     * 递增序列号（用于保证 FIFO 稳定性，多线程 post 安全）
      */
-    private long sequence;
+    private final AtomicLong sequence = new AtomicLong();
 
     /**
      * 构造函数
@@ -292,7 +293,7 @@ public final class TimeOrderedEventLoop extends WorkerLoop {
      * 统一入队逻辑
      */
     private void enqueue(Runnable task, long when) {
-        Node node = new Node(task, when, sequence++);
+        Node node = new Node(task, when, sequence.getAndIncrement());
         ingressQueue.offer(node);
 
         // 精确唤醒工作线程

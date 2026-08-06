@@ -121,7 +121,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param task 要执行的任务
      */
     @Override
-    public synchronized void runOnUiThreadTask(Runnable task) {
+    public void runOnUiThreadTask(Runnable task) {
         runOnUiThreadTask(task, 0L);
     }
 
@@ -132,7 +132,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param duration 延迟执行的时间（毫秒）
      */
     @Override
-    public synchronized void runOnUiThreadTask(Runnable task, long duration) {
+    public void runOnUiThreadTask(Runnable task, long duration) {
         try {
             getUiHandler().runOnUiThread(task, duration);
         } catch (Exception exception) {
@@ -146,7 +146,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param task 要移除的任务
      */
     @Override
-    public synchronized void removeFromUiThread(Runnable task) {
+    public void removeFromUiThread(Runnable task) {
         getUiHandler().removeCallbacks(task);
     }
 
@@ -171,7 +171,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param task 要执行的任务
      */
     @Override
-    public synchronized void runOnWorkThreadTask(Runnable task) {
+    public void runOnWorkThreadTask(Runnable task) {
         runOnWorkThreadTask(task, 0L);
     }
 
@@ -182,7 +182,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param delayMillis 延迟执行的时间（毫秒）
      */
     @Override
-    public synchronized void runOnWorkThreadTask(Runnable task, long delayMillis) {
+    public void runOnWorkThreadTask(Runnable task, long delayMillis) {
         try {
             getWorkerHandler().runOnWorkThread(task, delayMillis);
         } catch (Exception exception) {
@@ -196,7 +196,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param task 要移除的任务
      */
     @Override
-    public synchronized void removeFromWorkThread(Runnable task) {
+    public void removeFromWorkThread(Runnable task) {
         try {
             getWorkerHandler().removeCallbacks(task);
         } catch (Exception exception) {
@@ -208,7 +208,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * 移除工作线程中消息队列中的所有任务和消息
      */
     @Override
-    public synchronized void removeWorkCallbacksAndMessages() {
+    public void removeWorkCallbacksAndMessages() {
         try {
             getWorkerHandler().removeCallbacksAndMessages(null);
         } catch (Exception exception) {
@@ -222,7 +222,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param msg 要发送的消息对象
      */
     @Override
-    public synchronized void sendWorkThreadMessage(Message msg) {
+    public void sendWorkThreadMessage(Message msg) {
         sendWorkThreadMessageDelayed(msg, 0L);
     }
 
@@ -233,7 +233,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param delayMillis 延迟执行的时间（毫秒）
      */
     @Override
-    public synchronized void sendWorkThreadMessageDelayed(Message msg, long delayMillis) {
+    public void sendWorkThreadMessageDelayed(Message msg, long delayMillis) {
         try {
             getWorkerHandler().sendMessageDelayed(msg, delayMillis);
         } catch (Exception exception) {
@@ -247,7 +247,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param msg 要发送的消息对象
      */
     @Override
-    public synchronized void sendUiThreadMessage(Message msg) {
+    public void sendUiThreadMessage(Message msg) {
         sendUiThreadMessageDelayed(msg, 0L);
     }
 
@@ -258,7 +258,7 @@ public abstract class ThreadHandler implements ThreadHandlerStrategy {
      * @param delayMillis 延迟执行的时间（毫秒）
      */
     @Override
-    public synchronized void sendUiThreadMessageDelayed(Message msg, long delayMillis) {
+    public void sendUiThreadMessageDelayed(Message msg, long delayMillis) {
         try {
             mUIHandler.sendMessageDelayed(msg, delayMillis);
         } catch (Exception exception) {

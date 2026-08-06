@@ -11,14 +11,14 @@ import java.util.concurrent.Callable;
  *
  * <p> 用于执行「操作 + 状态校验」类逻辑，在校验失败时按指定次数进行重试 </p>
  *
- * <h3> ⚠️ 注意： </h3>
+ * <h3> 注意： </h3>
  * <p>
  *   本类所有方法均为阻塞方法，会调用 {@link SystemClock#sleep(long)}，
  *   必须在子线程（WorkerThread）中执行，禁止在主线程调用。
  * </p>
  *
  * @author 新一
- * @date 2025/12/29
+ * @date 2025/12/29 13:41
  */
 public final class RetryExecutor {
 
@@ -32,17 +32,10 @@ public final class RetryExecutor {
      */
     private static final long DEFAULT_INTERVAL_MS = 100L;
 
-    /**
-     * 私有构造，防止实例化
-     */
-    private RetryExecutor() {
-        throw new UnsupportedOperationException("Cannot instantiate RetryExecutor");
-    }
+    private RetryExecutor() { }
 
     /**
-     * 执行带校验的重试逻辑（使用默认参数）
-     *
-     * <p>⚠️ 阻塞方法，请勿在主线程调用</p>
+     * 执行带校验的重试逻辑
      *
      * @param action 实际执行的操作
      * @return true 表示在重试次数内成功；false 表示最终失败
@@ -55,9 +48,7 @@ public final class RetryExecutor {
     /**
      * 执行带校验的重试逻辑
      *
-     * <p>⚠️ 阻塞方法，请勿在主线程调用</p>
-     *
-     * @param maxRetry  最大重试次数（包含首次执行）
+     * @param maxRetry 最大重试次数（包含首次执行）
      * @param intervalMs 每次重试之间的间隔（毫秒）
      * @param action 实际执行的操作
      * @return true 表示在重试次数内成功；false 表示最终失败

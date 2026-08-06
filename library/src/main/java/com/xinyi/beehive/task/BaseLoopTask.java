@@ -5,8 +5,9 @@ import android.os.Message;
 
 import androidx.annotation.NonNull;
 
-import com.xinyi.beehive.proxy.ThreadHandlerProxy;
 import com.xinyi.beehive.core.ThreadHandler;
+import com.xinyi.beehive.core.WorkerHandler;
+import com.xinyi.beehive.proxy.ThreadHandlerProxy;
 
 /**
  * 循环任务基类封装
@@ -25,6 +26,11 @@ public abstract class BaseLoopTask extends BaseTask implements ThreadHandlerProx
      * 默认的循环时间常量
      */
     public static final long DEFAULT_LOOP_DELAY = 5000;
+
+    /**
+     * 循环消息 what
+     */
+    private static final int MSG_LOOP = 0;
 
     /**
      * 线程处理器
@@ -84,16 +90,36 @@ public abstract class BaseLoopTask extends BaseTask implements ThreadHandlerProx
             return;
         }
         isRunning = true;
+        isPaused = false;
         if (mThreadHandler == null) {
             mThreadHandler = ThreadHandler.createHandler(this, getTaskName());
-            mThreadHandler.getWorkerHandler().sendEmptyMessage(0);
         }
+        scheduleLoop(0);
+    }
+
+    @Override
+    public void pauseTask() {
+        if (!isRunning || isPaused) {
+            return;
+        }
+        isPaused = true;
+        cancelPendingLoop();
+    }
+
+    @Override
+    public void resumeTask() {
+        if (!isRunning || !isPaused) {
+            return;
+        }
+        isPaused = false;
+        scheduleLoop(0);
     }
 
     @Override
     public void recycleTask() {
         isRunning = false;
         isPaused = false;
+        cancelPendingLoop();
         if (mThreadHandler == null) {
             return;
         }
@@ -103,17 +129,38 @@ public abstract class BaseLoopTask extends BaseTask implements ThreadHandlerProx
     }
 
     /**
-     * 发送延迟空消息
+     * 取消待执行的循环消息
      */
-    private void sendEmptyMessageDelayed() {
-        if (getWorkerHandler() != null) {
-            getWorkerHandler().sendEmptyMessageDelayed(0, getLoopDelay());
+    protected void cancelPendingLoop() {
+        WorkerHandler handler = getWorkerHandler();
+        if (handler != null) {
+            handler.removeMessages(MSG_LOOP);
+        }
+    }
+
+    /**
+     * 调度下一次循环
+     *
+     * @param delayMillis 延迟毫秒，0 表示立即
+     */
+    protected void scheduleLoop(long delayMillis) {
+        WorkerHandler handler = getWorkerHandler();
+        if (handler == null || !isRunning || isPaused) {
+            return;
+        }
+        handler.removeMessages(MSG_LOOP);
+        if (delayMillis <= 0) {
+            handler.sendEmptyMessage(MSG_LOOP);
+        } else {
+            handler.sendEmptyMessageDelayed(MSG_LOOP, delayMillis);
         }
     }
 
     @Override
     public boolean handleMessage(@NonNull Message msg) {
-        runTask();
+        if (msg.what == MSG_LOOP) {
+            runTask();
+        }
         return false;
     }
 
@@ -121,16 +168,21 @@ public abstract class BaseLoopTask extends BaseTask implements ThreadHandlerProx
     public void runTask() {
         // 任务终止 或 暂停 则不执行
         if (!isRunning || isPaused) {
-            sendEmptyMessageDelayed();
             return;
         }
-        // 执行任务
-        if (mListener != null) {
-            long loopDelay = mListener.onLoopTask(getLoopDelay());
-            if (loopDelay != getLoopDelay()) {
-                setLoopDelay(loopDelay);
-            }
-            sendEmptyMessageDelayed();
+        if (mListener == null) {
+            return;
+        }
+
+        // 执行核心循环任务
+        long nextDelay = mListener.onLoopTask(getLoopDelay());
+
+        // 符合条件则更新默认间隔
+        if (nextDelay > 0 && nextDelay != getLoopDelay()) {
+            setLoopDelay(nextDelay);
+        }
+        if (isRunning && !isPaused) {
+            scheduleLoop(nextDelay > 0 ? nextDelay : 0);
         }
     }
 
@@ -140,9 +192,14 @@ public abstract class BaseLoopTask extends BaseTask implements ThreadHandlerProx
     public interface LoopTaskListener {
 
         /**
-         * 循环任务，返回值为下一次循环的延迟时间
+         * 循环任务回调
          *
-         * @param loopDelay 循环延迟时间
+         * @param loopDelay 当前默认循环间隔（毫秒）
+         * @return 下一次调度延迟（毫秒）：
+         *         <ul>
+         *           <li>{@code > 0}：按该值延迟后再回调；若与当前默认间隔不同，会更新默认间隔</li>
+         *           <li>{@code <= 0}：立即再调度一次，且不修改默认间隔 </li>
+         *         </ul>
          */
         long onLoopTask(long loopDelay);
     }

@@ -28,15 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  *     <li> 阻塞执行：同步等待结果（await）</li>
  * </ul>
  *
- * <p> 设计目标：</p>
- * <ul>
- *     <li> 统一线程调度入口 </li>
- *     <li> 明确同步 / 异步语义 </li>
- *     <li> 防止任务丢失（背压机制） </li>
- * </ul>
- *
- * ⚠️ 所有 blocking 方法禁止在主线程调用
- *
  * @author 新一
  * @date 2026/3/20 8:45
  */
@@ -55,7 +46,7 @@ public class GlobalTaskScheduler {
     /**
      * 线程处理器，支持工作线程和 UI 线程切换，内置 Handler，支持串行执行处理任务
      */
-    private static ThreadHandler sThreadHandler;
+    private static volatile ThreadHandler sThreadHandler;
 
     /**
      * 线程池，支持高并发执行
@@ -63,7 +54,7 @@ public class GlobalTaskScheduler {
     private static volatile ExecutorService sThreadPool;
 
     /**
-     * 线程编号生成器（用于命名）
+     * 线程命名编号生成器
      */
     private static final AtomicInteger sThreadId = new AtomicInteger(1);
 
@@ -73,10 +64,16 @@ public class GlobalTaskScheduler {
      * 获取线程处理器
      */
     public static ThreadHandler getThreadHandler() {
-        if (sThreadHandler == null) {
-            sThreadHandler = ThreadHandler.createHandler(THREAD_HANDLER_NAME);
+        ThreadHandler handler = sThreadHandler;
+        if (handler == null) {
+            synchronized (GlobalTaskScheduler.class) {
+                handler = sThreadHandler;
+                if (handler == null) {
+                    sThreadHandler = handler = ThreadHandler.createHandler(THREAD_HANDLER_NAME);
+                }
+            }
         }
-        return sThreadHandler;
+        return handler;
     }
 
     /**
@@ -262,6 +259,7 @@ public class GlobalTaskScheduler {
      * @param task 要执行的任务
      * @param timeoutMs 超时时间（毫秒）
      */
+    @WorkerThread
     public static void runWithTimeoutThenIgnore(Runnable task, long timeoutMs) {
         TaskBeehive.ensureNotMainThread();
         runWithTimeout(task, timeoutMs, null);
@@ -277,6 +275,7 @@ public class GlobalTaskScheduler {
      *                 <li> 1 - 任务执行超时 </li>
      *                 <li> 2 - 任务执行失败 </li>
      */
+    @WorkerThread
     public static void runWithTimeout(Runnable task, long timeoutMs, DualConsumer<Integer, Exception> callback) {
         TaskBeehive.ensureNotMainThread();
 

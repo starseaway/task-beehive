@@ -4,7 +4,7 @@
   <img src="task-beehive-logo.svg" width="500" alt="task-beehive-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-2.0.1-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -43,7 +43,10 @@ TaskBeehive 的目标很简单：
 
 ## 三、SDK 适用范围
 
-- Android SDK 版本：Min SDK 19（Android 4.4）及以上
+| 项目         | 要求                 |
+|------------|--------------------|
+| Min SDK    | 19（Android 4.4）及以上 |
+| JVM Target | 1.8                |
 
 ## 四、集成方式
 
@@ -57,15 +60,11 @@ maven {
 
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
-dependencies {
-    implementation 'com.github.starseaway:task-beehive:2.0.1'
-}
+implementation 'com.github.starseaway:task-beehive:2.1.0'
 ```
 
 ```kotlin
-dependencies {
-    implementation("com.github.starseaway:task-beehive:2.0.1")
-}
+implementation("com.github.starseaway:task-beehive:2.1.0")
 ```
 
 ### 3. 初始化
@@ -105,7 +104,7 @@ TaskBeehive.runOnWorker {
 }
 
 // 3. 在全局线程池中并发执行
-TaskBeehive.runAsync {
+TaskBeehive.runAsyncSafe {
     // 并行计算或网络请求
 }
 
@@ -267,12 +266,12 @@ class LoopTaskManager : BaseTaskManager<LoopTask>() {
 }
 ```
 
-### 4. 高精度延迟任务
+### 4. 延迟任务
 
 支持通过 CancelToken 随时取消，并可配置执行线程（Dispatcher）
 
 ```kotlin
-val delayScheduler = TaskBeehive.createDelayScheduler(1)
+val delayScheduler = TaskBeehive.createDelayScheduler(1, "Demo")
 
 // 提交一个 2 秒后的延迟任务
 val token = delayScheduler.schedule(2000) {
@@ -373,16 +372,16 @@ class TestLogger : ThreadHandlerProxy, Handler.Callback {
 TaskBeehive 并不是一堆工具类拼在一起，而是分层设计：
 
 ```
-快捷调度层（runOnUi / runAsync）
+快捷调度层（runOnUi / runOnWorker / runAsyncSafe）
         ↓
 调度器层（Delay / Periodic / Resettable）
         ↓
-任务层（LoopTask / TimerTask）
+任务层（LoopTask / PreciseTimerTask）
         ↓
-事件循环层（EventLoop）
+事件循环层（TimeOrderedEventLoop）
 ```
 
-👉 从“随手用”到“构建系统”，逐层提升，类似渐进式体验。
+从“随手用”到“构建系统”，逐层提升，类似渐进式体验。
 
 ---
 
@@ -407,31 +406,41 @@ TaskBeehive 并不是一堆工具类拼在一起，而是分层设计：
 
 ## 九、版本变更记录
 
+### V2.1.0 (2026-08-06)
+
+- ✨ feat: 快捷循环任务支持自定义命名，便于调试与任务管理识别
+- ✨ feat: 可控循环任务的立即执行可感知是否真正跑完核心逻辑
+- 🐞 fix: 修复多线程投递、防抖重排、全局 Handler 初始化等并发正确性问题
+- 🐞 fix: 修复循环 / 精准定时任务暂停后仍空转续期，以及可控循环生命周期状态被遮蔽的问题
+- 🐞 fix: 修复工作循环自线程暂停死锁，以及工作 Handler 对 Application 的错误依赖
+- 🚀 perf: 可控循环改为非阻塞调度，避免长时间占死工作线程
+- 🦄 refactor: 精准定时改用更稳妥的调度后端；去掉 Handler 门面多余同步锁
+- ♻️ cleanup: 强化任务状态跨线程可见性与任务管理器并发安全
+- 🧷 api: 扩展循环任务创建方式，并明确循环回调返回值的调度语义
+- 📃 docs: 同步 README 示例与版本记录格式
+
 ### V2.0.1 (2026-03-31)
-- build: 修改 agp 构建版本
+- 🔧 build: 修改 agp 构建版本
 
 ### V2.0.0 (2026-03-20)
-- 本次新增了一些核心的任务调度器组件，目录层级也有所变动，属于重大更新。
-- 从这一版开始，正式在 Github 开源发布
+- ✨ feat: 新增核心任务调度器组件，目录层级调整，重大更新
+- ✨ feat: 正式在 Github 开源发布
 
 ### V1.2.0 (2025-08-14)
-- 工具类中新增了更多的快捷调用方法
+- ✨ feat: 工具类中新增更多快捷调用方法
 
 ### V1.1.1 (2025-06-03)
-- 优化循环任务回调后的间隔时间刷新机制
+- 🚀 perf: 优化循环任务回调后的间隔时间刷新机制
 
 ### V1.1.0 (2025-06-03)
-- 新增一个用于快速创建循环任务的通用任务类
-- 线程处理器封装判断工作线程是否存活的方法
+- ✨ feat: 新增用于快速创建循环任务的通用任务类
+- ✨ feat: 线程处理器封装判断工作线程是否存活的方法
 
 ### V1.0.3 (2025-04-30)
-- 新增在指定超时时间内运行一个任务，如果超时则不中断，让其继续在后台运行的功能
+- ✨ feat: 新增超时运行任务能力（超时后不中断，转为后台继续执行）
 
 ### V1.0.2 (2025-04-09)
-- 使用静态内部类替代匿名类，修复 R8 编译阶段 NullPointerException 问题
-
-问题原因：匿名内部类会隐式引用外部类，在 Gradle 7.2.2 搭配旧版 R8 编译时，优化过程中因引用缺失抛出 NullPointerException。
-将匿名内部类替换为静态内部类，避免对外部类的隐式依赖，规避 R8 优化 bug。
+- 🐞 fix: 使用静态内部类替代匿名类，修复 R8 编译阶段 NullPointerException
 
 ### V1.0.0 (2025-03-31)
-- 初始化发布，包含基础的同步（串行）任务和异步任务调度等功能，以及一些自定义的任务，如循环任务和精准控制时任务等。
+- ✨ feat: 初始化发布，包含串行 / 异步调度、循环任务与精准定时任务等基础能力

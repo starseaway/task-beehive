@@ -3,9 +3,9 @@ package com.xinyi.beehive.utils;
 import java.util.Objects;
 
 /**
- * <p>
- * 这是一个双参数的消费者接口，可以接收两个参数并执行操作，支持组合回调。
- * </p>
+ * 双参消费接口
+ *
+ * <p> 这是一个双参数的消费者接口，可以接收两个参数并执行操作，支持组合回调  </p>
  *
  * 本接口模仿 JDK8 的 {@link java.util.function.BiConsumer} 自定义回调接口设计，兼容 Android SDK 19。
  *

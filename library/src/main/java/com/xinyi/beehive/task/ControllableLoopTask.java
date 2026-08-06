@@ -1,7 +1,5 @@
 package com.xinyi.beehive.task;
 
-import android.os.SystemClock;
-
 import androidx.annotation.WorkerThread;
 
 import com.xinyi.beehive.utils.PauseableTimer;
@@ -21,10 +19,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *     <li> 立即执行（跳过周期） </li>
  * </ul>
  *
+ * <p> 周期等待与阻塞等待均通过返回下一次调度延迟实现，不在 Handler 线程上 sleep，避免占死消息队列。 </p>
+ *
  * @author 新一
  * @date 2026/3/19 14:43
  */
 public abstract class ControllableLoopTask extends BaseLoopTask implements BaseLoopTask.LoopTaskListener {
+
+    /**
+     * 轮询间隔
+     *
+     * <p> 用于暂停计时 / 执行阻塞时感知状态变化 </p>
+     */
+    private static final long POLL_TICK_MS = 100L;
 
     /**
      * 重置标志（用于中断当前周期）
@@ -32,14 +39,19 @@ public abstract class ControllableLoopTask extends BaseLoopTask implements BaseL
     private final AtomicBoolean mResetFlag = new AtomicBoolean(false);
 
     /**
-     * 当前任务是否正在执行核心逻辑
+     * 当前是否正在执行核心任务逻辑
      */
-    private final AtomicBoolean mIsRunning = new AtomicBoolean(false);
+    private final AtomicBoolean mIsExecutingCore = new AtomicBoolean(false);
 
     /**
      * 周期计时器（支持暂停 / 恢复）
      */
     private final PauseableTimer mPeriodTimer = new PauseableTimer();
+
+    /**
+     * 任务当前执行阶段
+     */
+    private volatile Phase mPhase = Phase.IDLE;
 
     /**
      * 构造函数
@@ -84,7 +96,7 @@ public abstract class ControllableLoopTask extends BaseLoopTask implements BaseL
     protected abstract void executeCore();
 
     /**
-     * 工作逻辑的异常信息收集
+     * 核心任务的异常信息收集
      *
      * @param isAuto 是否自动周期执行
      * @param throwable 异常信息
@@ -93,13 +105,48 @@ public abstract class ControllableLoopTask extends BaseLoopTask implements BaseL
 
     /**
      * 是否允许执行
-     *
-     * @return true = 允许执行
      */
     protected boolean canExecute() {
         return true;
     }
 
+    @Override
+    public void pauseTask() {
+        mPeriodTimer.pause();
+        super.pauseTask();
+    }
+
+    @Override
+    public void resumeTask() {
+        mPeriodTimer.resume();
+        super.resumeTask();
+    }
+
+    @Override
+    public void recycleTask() {
+        mPhase = Phase.IDLE;
+        mPeriodTimer.reset();
+        mResetFlag.set(false);
+        super.recycleTask();
+    }
+
+    /**
+     * 自行调度下一次 tick，避免把周期剩余时间写回 {@link #getLoopDelay()} 默认间隔
+     */
+    @Override
+    public void runTask() {
+        if (!isRunning || isPaused) {
+            return;
+        }
+        long nextDelay = onLoopTask(getLoopDelay());
+        if (isRunning && !isPaused) {
+            scheduleLoop(Math.max(0, nextDelay));
+        }
+    }
+
+    /**
+     * 状态机主循环
+     */
     @Override
     public long onLoopTask(long loopDelay) {
         long period = providePeriod();
@@ -107,85 +154,111 @@ public abstract class ControllableLoopTask extends BaseLoopTask implements BaseL
             return loopDelay;
         }
 
-        // 周期未完成，直接返回
-        if (!mPeriodTimer.isFinished()) {
-            return loopDelay;
+        // 开启新一轮周期倒计时
+        if (mPhase == Phase.IDLE) {
+            mResetFlag.set(false);
+            mPeriodTimer.start(period);
+            mPhase = Phase.WAITING_PERIOD;
+            return nextPeriodDelay();
         }
 
-        // 仅在进入新周期时清 reset 标志，避免提前清除导致 reset 信号丢失
-        mResetFlag.set(false);
-
-        mPeriodTimer.start(period);
-
-        // 周期计时阶段
-        while (!mPeriodTimer.isFinished()) {
-            // reset 中断
+        // 周期倒计时
+        if (mPhase == Phase.WAITING_PERIOD) {
+            // resetNow 立即打断当前周期
             if (mResetFlag.get()) {
                 mPeriodTimer.reset();
-                return loopDelay;
+                mPhase = Phase.IDLE;
+                return 0;
             }
-            // pause / resume 控制
+            // 暂停计时，短轮询等待放行
             if (shouldPauseTimer()) {
                 mPeriodTimer.pause();
-            } else {
-                mPeriodTimer.resume();
-                mPeriodTimer.tick();
+                return POLL_TICK_MS;
             }
-            SystemClock.sleep(100);
+            // 推进计时；未到点则继续等，到点则进入阻塞门闩阶段
+            mPeriodTimer.resume();
+            mPeriodTimer.tick();
+            if (!mPeriodTimer.isFinished()) {
+                return nextPeriodDelay();
+            }
+            mPhase = Phase.BLOCKING;
         }
 
-        // 执行阻塞阶段
-        while (shouldBlockExecute()) {
-            if (mResetFlag.get()) {
-                return loopDelay;
-            }
-            SystemClock.sleep(100);
+        // 阻塞阶段同样可打断
+        if (mResetFlag.get()) {
+            mPhase = Phase.IDLE;
+            return 0;
+        }
+        // 未放行，则短轮询等待放行后进入核心
+        if (shouldBlockExecute()) {
+            return POLL_TICK_MS;
         }
 
-        // 执行阶段
+        // 业务侧拒绝本次执行
         if (!canExecute()) {
+            mPhase = Phase.IDLE;
             return loopDelay;
         }
 
-        // 防止 executeNow 并发执行
-        if (!mIsRunning.compareAndSet(false, true)) {
+        // 与 executeNow 互斥，避免核心逻辑并发
+        if (!mIsExecutingCore.compareAndSet(false, true)) {
             return loopDelay;
         }
 
-        // 到达周期终点，执行核心控制逻辑
         try {
             executeCore();
         } catch (Throwable throwable) {
             onLoopException(true, throwable);
         } finally {
-            mIsRunning.set(false);
+            mIsExecutingCore.set(false);
+            // 执行完毕，回到 IDLE，等待开启下一周期
+            mPhase = Phase.IDLE;
         }
         return loopDelay;
     }
 
     /**
+     * 周期未结束时的下一次调度延迟
+     *
+     * <p> 短轮询以便感知 shouldPauseTimer，且不阻塞 Handler 队列 </p>
+     */
+    private long nextPeriodDelay() {
+        long remaining = mPeriodTimer.getRemainingMillis();
+        if (remaining <= 0) {
+            return 0;
+        }
+        return Math.min(remaining, POLL_TICK_MS);
+    }
+
+    /**
      * 立即执行一次核心任务（跳过周期）
+     *
+     * @return true = 已成功跑完 {@link #executeCore()}；
+     *         false = 未执行（门闩未开 / 不允许 / 并发占用）或执行中抛错
      */
     @WorkerThread
-    public void executeNow() {
+    public boolean executeNow() {
+        // 阻塞中则立即放弃，不等待
         if (shouldBlockExecute()) {
-            return;
+            return false;
         }
         if (!canExecute()) {
-            return;
+            return false;
         }
 
-        // 防并发
-        if (!mIsRunning.compareAndSet(false, true)) {
-            return;
+        // 与 onLoopTask 互斥，避免核心逻辑并发
+        if (!mIsExecutingCore.compareAndSet(false, true)) {
+            return false;
         }
 
         try {
             executeCore();
+            return true;
         } catch (Throwable throwable) {
             onLoopException(false, throwable);
-        }  finally {
-            mIsRunning.set(false);
+            return false;
+        } finally {
+            mIsExecutingCore.set(false);
         }
     }
 
@@ -196,16 +269,32 @@ public abstract class ControllableLoopTask extends BaseLoopTask implements BaseL
      */
     public void resetNow() {
         mResetFlag.set(true);
-        // 立即生效
         mPeriodTimer.reset();
+        mPhase = Phase.IDLE;
+        cancelPendingLoop();
+        scheduleLoop(0);
     }
 
     /**
-     * 当前任务是否正在执行核心逻辑
+     * 当前是否正在执行核心逻辑
      *
-     * @return true = 正在执行
+     * <p> 注意：生命周期是否已启动请使用 {@link #isRunning()} </p>
+     *
+     * @return true = 正在执行核心逻辑
      */
-    public boolean isRunning() {
-        return mIsRunning.get();
+    public boolean isExecutingCore() {
+        return mIsExecutingCore.get();
+    }
+
+    /**
+     * 任务当前执行阶段
+     */
+    private enum Phase {
+        /** 待开启新周期 */
+        IDLE,
+        /** 周期倒计时中 */
+        WAITING_PERIOD,
+        /** 等待放行执行 */
+        BLOCKING
     }
 }

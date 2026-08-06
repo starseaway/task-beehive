@@ -2,20 +2,20 @@ package com.xinyi.beehive.core;
 
 import android.os.Handler;
 
+import androidx.annotation.NonNull;
+
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 高级延迟任务调度器（无阻塞 + 可中断 + 高精度）
+ * 可取消的延迟任务调度器
  *
- * <p> 支持：</p>
- * <ul>
- *     <li> 延迟任务（高精度） </li>
- *     <li> 任务取消（CancelToken） </li>
- *     <li> 条件执行（Condition） </li>
- *     <li> 执行线程切换（Dispatcher） </li>
- * </ul>
+ * <p>
+ *   基于 {@link ScheduledExecutorService} 做相对延迟调度；到时间后经 {@link TaskDispatcher} 切到指定线程执行。
+ * </p>
+ *
+ * <p> 支持按任务 ID 去重、{@link CancelToken} 取消，以及到时间前的条件拦截 </p>
  *
  * @author 新一
  * @date 2026/3/19 16:48
@@ -23,23 +23,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class DelayTaskScheduler {
 
     /**
-     * 全局调度线程（时间控制）
+     * 全局调度线程（负责时间控制）
      */
-    private final ScheduledExecutorService scheduler;
+    private final ScheduledExecutorService mScheduler;
 
     /**
      * 任务表（用于去重 / 管理）
      */
-    private final Map<String, ScheduledFuture<?>> taskMap = new ConcurrentHashMap<>();
+    private final Map<String, ScheduledFuture<?>> mTaskMap = new ConcurrentHashMap<>();
 
     /**
      * 构造函数
      *
      * @param coreSize 线程数量
+     * @param threadNameSuffix 工作线程名后缀
      */
-    public DelayTaskScheduler(int coreSize) {
-        this.scheduler = new ScheduledThreadPoolExecutor(coreSize, runnable -> {
-            Thread thread = new Thread(runnable, "SmartScheduler");
+    public DelayTaskScheduler(int coreSize, String threadNameSuffix) {
+        this.mScheduler = new ScheduledThreadPoolExecutor(coreSize, runnable -> {
+            Thread thread = new Thread(runnable, "Beehive-DelayTaskScheduler-" + threadNameSuffix);
             thread.setDaemon(true);
             return thread;
         });
@@ -60,7 +61,7 @@ public final class DelayTaskScheduler {
         if (taskId != null) {
             cancel(taskId);
         }
-        ScheduledFuture<?> future = scheduler.schedule(() -> {
+        ScheduledFuture<?> future = mScheduler.schedule(() -> {
             if (token.isCanceled()) {
                 return;
             }
@@ -80,24 +81,24 @@ public final class DelayTaskScheduler {
             });
         }, delayMs, TimeUnit.MILLISECONDS);
 
-        // 绑定
+        // 绑定 Future
         token.bind(future);
 
         if (taskId != null) {
-            taskMap.put(taskId, future);
+            mTaskMap.put(taskId, future);
         }
         return token;
     }
 
     /**
-     * 提交延迟任务，简化调用
+     * 提交延迟任务
      */
     public CancelToken schedule(long delayMs, TaskDispatcher dispatcher, Runnable action) {
         return schedule(null, delayMs, null, dispatcher, action);
     }
 
     /**
-     * 提交延迟任务，简化调用
+     * 提交延迟任务
      */
     public CancelToken schedule(long delayMs, Runnable action) {
         return schedule(null, delayMs, null, TaskDispatcher.direct(), action);
@@ -107,7 +108,7 @@ public final class DelayTaskScheduler {
      * 取消任务
      */
     public void cancel(String taskId) {
-        ScheduledFuture<?> future = taskMap.remove(taskId);
+        ScheduledFuture<?> future = mTaskMap.remove(taskId);
         if (future != null) {
             future.cancel(false);
         }
@@ -117,8 +118,8 @@ public final class DelayTaskScheduler {
      * 关闭调度器
      */
     public void shutdown() {
-        scheduler.shutdown();
-        taskMap.clear();
+        mScheduler.shutdown();
+        mTaskMap.clear();
     }
 
     /**
@@ -174,6 +175,7 @@ public final class DelayTaskScheduler {
         /**
          * 当前线程执行
          */
+        @NonNull
         static TaskDispatcher direct() {
             return Runnable::run;
         }
@@ -181,14 +183,16 @@ public final class DelayTaskScheduler {
         /**
          * Handler 线程执行
          */
-        static TaskDispatcher handler(Handler handler) {
+        @NonNull
+        static TaskDispatcher handler(@NonNull Handler handler) {
             return handler::post;
         }
 
         /**
          * 线程池执行
          */
-        static TaskDispatcher executor(Executor executor) {
+        @NonNull
+        static TaskDispatcher executor(@NonNull Executor executor) {
             return executor::execute;
         }
     }

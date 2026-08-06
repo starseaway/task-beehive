@@ -14,22 +14,22 @@ public abstract class BaseTask {
     public abstract String getTaskName();
 
     /**
-     * 任务运行状态
+     * 任务运行状态（跨线程可见）
      */
-    protected boolean isRunning = false;
+    protected volatile boolean isRunning = false;
 
     /**
-     * 任务暂停状态
+     * 任务暂停状态（跨线程可见）
      */
-    protected boolean isPaused = false;
+    protected volatile boolean isPaused = false;
 
     /**
-     * 任务体
+     * 核心任务体
      */
     public abstract void runTask();
 
     /**
-     * 是否正在运行
+     * 任务是否已启动且未回收（生命周期状态，不等于“核心任务体正在执行”）
      */
     public boolean isRunning() {
         return isRunning;

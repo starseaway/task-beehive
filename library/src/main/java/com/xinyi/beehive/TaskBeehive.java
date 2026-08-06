@@ -18,8 +18,6 @@ import java.util.concurrent.Callable;
 /**
  * 任务调度框架门面类
  *
- * <p> 框架使用前，需要初始化 Application 对象 </p>
- *
  * @author 新一
  * @date 2025/3/18 10:57
  */
@@ -28,40 +26,41 @@ public final class TaskBeehive {
     /**
      * Application 实例
      */
-    private static Application sApplication;
+    private static volatile Application sApplication;
 
     /**
-     * 是否已经初始化了 Application 实例
-     *
-     * @return true 如果已初始化，否则 false
+     * 是否已初始化 Application
      */
     public static boolean isInitApplication() {
         return sApplication != null;
     }
 
     /**
-     * 获取当前主应用的 Application 实例
+     * 获取 Application 实例
      *
-     * @return Application 实例
-     * @throws IllegalStateException 如果未初始化
+     * @throws IllegalStateException 尚未 {@link #init(Context)}
      */
     public static Application getApplication() {
-        if (sApplication == null) {
-            throw new IllegalStateException("TaskBeehive 未初始化，请先调用 init(Context) 方法！");
+        Application application = sApplication;
+        if (application == null) {
+            throw new IllegalStateException("TaskBeehive.init(Context) has not been called");
         }
-        return sApplication;
+        return application;
     }
 
     /**
-     * 设置 Application 实例
+     * 注入 Application
      *
-     * @param context Context 实例
+     * @param context 任意 Context，内部取 {@link Context#getApplicationContext()}
      */
     public static void init(Context context) {
-        if (sApplication != null) {
+        if (context == null || sApplication != null) {
             return;
         }
-        sApplication = (Application) context.getApplicationContext();
+        Context appContext = context.getApplicationContext();
+        if (appContext instanceof Application) {
+            sApplication = (Application) appContext;
+        }
     }
 
     /**
@@ -82,38 +81,34 @@ public final class TaskBeehive {
 
     /**
      * 获取全局周期任务调度器
-     *
-     * @return PeriodicTaskScheduler 实例
      */
     public static PeriodicTaskScheduler getPeriodicScheduler() {
         return PeriodicTaskScheduler.getInstance();
     }
 
     /**
-     * 创建一个高精度延迟任务调度器
+     * 创建一个延迟任务调度器
      *
      * @param coreSize 核心线程数
-     * @return DelayTaskScheduler 实例
+     * @param threadNameSuffix 线程名称后缀
      */
-    public static DelayTaskScheduler createDelayScheduler(int coreSize) {
-        return new DelayTaskScheduler(coreSize);
+    public static DelayTaskScheduler createDelayScheduler(int coreSize, String threadNameSuffix) {
+        return new DelayTaskScheduler(coreSize, threadNameSuffix);
     }
 
     /**
      * 创建一个支持重置延迟的任务调度器
      *
-     * @param threadName 线程名称
-     * @return ResettableDelayScheduler 实例
+     * @param threadNameSuffix 线程名称
      */
-    public static ResettableDelayScheduler createResettableDelayScheduler(String threadName) {
-        return new ResettableDelayScheduler(threadName);
+    public static ResettableDelayScheduler createResettableDelayScheduler(String threadNameSuffix) {
+        return new ResettableDelayScheduler(threadNameSuffix);
     }
 
     /**
      * 创建一个时间有序的单线程事件循环调度器
      *
      * @param threadName 线程名称
-     * @return TimeOrderedEventLoop 实例
      */
     public static TimeOrderedEventLoop createTimeOrderedEventLoop(String threadName) {
         return new TimeOrderedEventLoop(threadName);

@@ -8,10 +8,8 @@ import android.util.Printer;
 
 import androidx.annotation.NonNull;
 
-import com.xinyi.beehive.TaskBeehive;
-
 /**
- * 工作线程Handler处理
+ * 工作线程 Handler 处理
  *
  * <p>
  *   封装了 Android 4.4 及以上版本中的 HandlerThread 和 Looper。
@@ -86,14 +84,11 @@ public class WorkerHandler extends Handler {
      * @param task 要执行的任务
      * @param delayMillis 延迟执行的时间（毫秒）
      */
-    public synchronized void runOnWorkThread(Runnable task, long delayMillis) {
+    public void runOnWorkThread(Runnable task, long delayMillis) {
         if (task == null) {
             return;
         }
-        long threadId = TaskBeehive.getApplication().getMainLooper().getThread().getId();
-        if (Thread.currentThread().getId() != threadId && Looper.myLooper() == null) {
-            Looper.prepare();
-        }
+
         removeCallbacks(task);
         if (delayMillis > 0) {
             postDelayed(task, delayMillis);

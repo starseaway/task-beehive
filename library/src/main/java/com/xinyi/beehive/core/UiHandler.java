@@ -7,7 +7,7 @@ import android.os.Message;
 import androidx.annotation.NonNull;
 
 /**
- * UI线程的Handler处理类
+ * UI 线程的 Handler 处理类
  *
  * @author 新一
  * @date 2025/3/18 11:24
@@ -39,7 +39,7 @@ public class UiHandler extends Handler {
      * @param task 要执行的任务
      * @param duration 延迟执行的时间（毫秒）
      */
-    public synchronized void runOnUiThread(Runnable task, long duration) {
+    public void runOnUiThread(Runnable task, long duration) {
         if (task == null) {
             return;
         }

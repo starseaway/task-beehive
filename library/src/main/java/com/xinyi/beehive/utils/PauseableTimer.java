@@ -82,16 +82,22 @@ public class PauseableTimer {
      * 判断计时是否已经完成
      */
     public boolean isFinished() {
+        if (!isPaused) {
+            updateRemaining();
+        }
         return mRemainingMillis <= 0;
     }
 
     /**
      * 获取当前剩余时间
      *
-     * <p> 可用于日志或状态展示 </p>
+     * <p> 非暂停时会先结算已流逝时间，保证读数准确 </p>
      */
     public long getRemainingMillis() {
-        return mRemainingMillis;
+        if (!isPaused) {
+            updateRemaining();
+        }
+        return Math.max(0, mRemainingMillis);
     }
 
     /**

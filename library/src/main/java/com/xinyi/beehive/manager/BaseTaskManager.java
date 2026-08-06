@@ -2,8 +2,8 @@ package com.xinyi.beehive.manager;
 
 import com.xinyi.beehive.task.BaseTask;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 任务管理器
@@ -23,7 +23,7 @@ public abstract class BaseTaskManager<T extends BaseTask> {
      */
     public BaseTaskManager() {
         // 初始化任务Map集
-        taskMap = new HashMap<>();
+        taskMap = new ConcurrentHashMap<>();
         // 初始化任务管理器
         initTaskManager();
     }

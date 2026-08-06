@@ -19,7 +19,7 @@ import com.xinyi.beehive.core.WorkerHandler;
  *
  * <p>
  *   该代理层不仅封装了 ThreadHandler 的调用，还能够适配不同的 ThreadHandler 实现，
- *   因此本质上它既是一个策略适配器，但也算是ThreadHandler的代理。
+ *   因此本质上它既是一个策略适配器，但也算是 ThreadHandler 的代理。
  * </p>
  *
  * @author 新一

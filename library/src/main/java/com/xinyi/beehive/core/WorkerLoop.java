@@ -107,7 +107,7 @@ public abstract class WorkerLoop implements Runnable {
     /**
      * 线程已进入暂停态的确认标记
      *
-     * <p> 用于实现 {@link #pause()} 完成时线程已经真正 park </p>
+     * <p> 用于实现 {@link #pause()} 完成时，线程已经真正 park </p>
      */
     private final AtomicBoolean pausedFlag = new AtomicBoolean(false);
 
@@ -163,11 +163,16 @@ public abstract class WorkerLoop implements Runnable {
     /**
      * 暂停线程
      *
-     * <p> 调用完成时保证【线程不会再进入新的 doWorkLoop<、线程已进入 park 状态】
+     * <p> 方法调用完成时，会保证线程不会再进入新的 {@link #doWorkLoop}；彼时线程已进入 park 状态。 </p>
      */
     public void pause() {
         if (!workerState.compareAndSet(STATE_RUNNING, STATE_PAUSED)) {
             return;
+        }
+
+        if (Thread.currentThread() == worker) {
+            // pause 需要等待工作线程进入 park，工作线程自身调用会导致自等待死锁
+            throw new IllegalStateException(threadName() + " cannot call pause() on itself");
         }
 
         // 清除可能残存的暂停确认
@@ -175,6 +180,11 @@ public abstract class WorkerLoop implements Runnable {
 
         // 等待工作线程确认本次 pause 并进入 park
         while (!pausedFlag.get()) {
+            // 期间若已被 stop / resume，结束等待
+            int state = workerState.get();
+            if (state != STATE_PAUSED) {
+                return;
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // 轻量级自旋等待
                 Thread.onSpinWait();
